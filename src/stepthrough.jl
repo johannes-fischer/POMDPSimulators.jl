@@ -21,7 +21,7 @@ function simulate(sim::StepSimulator, mdp::MDP{S}, policy::Policy, init_state::S
 end
 
 function simulate(sim::StepSimulator, pomdp::POMDP, policy::Policy, bu::Updater=updater(policy))
-    dist = initialstate_distribution(pomdp)    
+    dist = initialstate_distribution(pomdp)
     return simulate(sim, pomdp, policy, bu, dist)
 end
 
@@ -47,21 +47,21 @@ struct MDPSimIterator{SPEC, M<:MDP, P<:Policy, RNG<:AbstractRNG, S}
     max_steps::Int
 end
 
-function MDPSimIterator(spec::Union{Tuple, Symbol}, mdp::MDP, policy::Policy, rng::AbstractRNG, init_state, max_steps::Int) 
+function MDPSimIterator(spec::Union{Tuple, Symbol}, mdp::MDP, policy::Policy, rng::AbstractRNG, init_state, max_steps::Int)
     return MDPSimIterator{spec, typeof(mdp), typeof(policy), typeof(rng), typeof(init_state)}(mdp, policy, rng, init_state, max_steps)
 end
 
 Base.IteratorSize(::Type{<:MDPSimIterator}) = Base.SizeUnknown()
 
-function Base.iterate(it::MDPSimIterator, is::Tuple{Int, S}=(1, it.init_state)) where S
-    if isterminal(it.mdp, is[2]) || is[1] > it.max_steps 
-        return nothing 
-    end 
+function Base.iterate(it::MDPSimIterator, is::Tuple{Int, S, A}=(1, it.init_state, nothing)) where {S,A}
+    if (is[1] == 1 ? isterminal(it.mdp, is[2]) : isterminal(it.mdp, is[2:3]...)) || is[1] > it.max_steps
+        return nothing
+    end
     t = is[1]
     s = is[2]
     a, ai = action_info(it.policy, s)
     sp, r, i = generate_sri(it.mdp, s, a, it.rng)
-    return (out_tuple(it, (s, a, r, sp, t, i, ai)), (t+1, sp))
+    return (out_tuple(it, (s, a, r, sp, t, i, ai)), (t+1, sp, a))
 end
 
 struct POMDPSimIterator{SPEC, M<:POMDP, P<:Policy, U<:Updater, RNG<:AbstractRNG, B, S}
@@ -73,7 +73,7 @@ struct POMDPSimIterator{SPEC, M<:POMDP, P<:Policy, U<:Updater, RNG<:AbstractRNG,
     init_state::S
     max_steps::Int
 end
-function POMDPSimIterator(spec::Union{Tuple,Symbol}, pomdp::POMDP, policy::Policy, up::Updater, rng::AbstractRNG, init_belief, init_state, max_steps::Int) 
+function POMDPSimIterator(spec::Union{Tuple,Symbol}, pomdp::POMDP, policy::Policy, up::Updater, rng::AbstractRNG, init_belief, init_state, max_steps::Int)
     return POMDPSimIterator{spec,
                             typeof(pomdp),
                             typeof(policy),
@@ -91,23 +91,23 @@ end
 
 Base.IteratorSize(::Type{<:POMDPSimIterator}) = Base.SizeUnknown()
 
-function Base.iterate(it::POMDPSimIterator, is::Tuple{Int,S,B} = (1, it.init_state, it.init_belief)) where {S,B}
-    if isterminal(it.pomdp, is[2]) || is[1] > it.max_steps 
-        return nothing 
-    end 
+function Base.iterate(it::POMDPSimIterator, is::Tuple{Int,S,A,O,B} = (1, it.init_state, nothing, nothing, it.init_belief)) where {S,A,O,B}
+    if (is[1] == 1 ? isterminal(it.pomdp, is[2]) : isterminal(it.pomdp, is[2:4]...)) || is[1] > it.max_steps
+        return nothing
+    end
     t = is[1]
     s = is[2]
-    b = is[3]
+    b = is[5]
     a, ai = action_info(it.policy, b)
     sp, o, r, i = generate_sori(it.pomdp, s, a, it.rng)
     bp, ui = update_info(it.updater, b, a, o)
-    return (out_tuple(it, (s, a, r, sp, t, i, ai, b, o, bp, ui)), (t+1, sp, bp))
+    return (out_tuple(it, (s, a, r, sp, t, i, ai, b, o, bp, ui)), (t+1, sp, a, o, bp))
 end
 
 const sym_to_ind = Dict(sym=>i for (i, sym) in enumerate(COMPLETE_POMDP_STEP))
 
 @generated function out_tuple(it::Union{MDPSimIterator, POMDPSimIterator}, all::Tuple)
-    spec = it.parameters[1]     
+    spec = it.parameters[1]
     if isa(spec, Tuple)
         calls = []
         for sym in spec
@@ -165,7 +165,7 @@ convert_spec(spec::Symbol) = spec
     stepthrough(mdp::MDP, policy::Policy, [init_state], [spec]; [kwargs...])
     stepthrough(pomdp::POMDP, policy::Policy, [up::Updater, [initial_belief, [initial_state]]], [spec]; [kwargs...])
 
-Create a simulation iterator. This is intended to be used with for loop syntax to output the results of each step *as the simulation is being run*. 
+Create a simulation iterator. This is intended to be used with for loop syntax to output the results of each step *as the simulation is being run*.
 
 Example:
 

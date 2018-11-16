@@ -78,7 +78,7 @@ end
 end
 
 function simulate(sim::HistoryRecorder,
-                           pomdp::POMDP{S,A,O}, 
+                           pomdp::POMDP{S,A,O},
                            policy::Policy,
                            bu::Updater,
                            initialstate_dist::Any,
@@ -126,7 +126,7 @@ function simulate(sim::HistoryRecorder,
     step = 1
 
     try
-        while !isterminal(pomdp, sh[step]) && step <= max_steps
+        while !isterminal(pomdp, sh[step], get(ah,step-1,nothing), get(oh,step-1,nothing)) && step <= max_steps
             a, ai = action_info(policy, bh[step])
             push!(ah, a)
             push!(aih, ai)
@@ -182,7 +182,7 @@ end
 function simulate(sim::HistoryRecorder,
                   mdp::MDP{S,A}, policy::Policy,
                   init_state::S=get_initialstate(sim, mdp)) where {S,A}
-    
+
     if sim.max_steps == nothing
         max_steps = typemax(Int)
     else
@@ -216,7 +216,7 @@ function simulate(sim::HistoryRecorder,
     step = 1
 
     try
-        while !isterminal(mdp, sh[step]) && step <= max_steps
+        while !isterminal(mdp, sh[step], get(ah,step-1,nothing)) && step <= max_steps
             a, ai = action_info(policy, sh[step])
             push!(ah, a)
             push!(aih, ai)

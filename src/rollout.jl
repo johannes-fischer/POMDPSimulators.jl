@@ -83,13 +83,16 @@ end
 end
 
 function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::Updater, initial_belief, s)
-    
+    if isterminal(pomdp, s)
+        return 0.0
+    end
+
     if sim.eps == nothing
         eps = 0.0
     else
         eps = sim.eps
     end
-    
+
     if sim.max_steps == nothing
         max_steps = typemax(Int)
     else
@@ -100,10 +103,12 @@ function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::
     r_total = 0.0
 
     b = initialize_belief(updater, initial_belief)
+    a = nothing
+    o = nothing
 
     step = 1
 
-    while disc > eps && !isterminal(pomdp, s) && step <= max_steps
+    while disc > eps && !isterminal(pomdp, s, a, o) && step <= max_steps
 
         a = action(policy, b)
 
@@ -144,13 +149,16 @@ function simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy)
 end
 
 function simulate(sim::RolloutSimulator, mdp::Union{MDP{S}, POMDP{S}}, policy::Policy, initialstate::S) where {S}
-    
+    if isterminal(mdp, initialstate)
+        return 0.0
+    end
+
     if sim.eps == nothing
         eps = 0.0
     else
         eps = sim.eps
     end
-    
+
     if sim.max_steps == nothing
         max_steps = typemax(Int)
     else
@@ -158,12 +166,13 @@ function simulate(sim::RolloutSimulator, mdp::Union{MDP{S}, POMDP{S}}, policy::P
     end
 
     s = initialstate
+    a = nothing
 
     disc = 1.0
     r_total = 0.0
     step = 1
 
-    while disc > eps && !isterminal(mdp, s) && step <= max_steps
+    while disc > eps && !isterminal(mdp, s, a) && step <= max_steps
         a = action(policy, s)
 
         sp, r = generate_sr(mdp, s, a, sim.rng)
