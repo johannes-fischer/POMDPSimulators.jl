@@ -9,6 +9,8 @@ using POMDPModelTools
 using BeliefUpdaters
 using Distributed
 
+using Test
+
 import POMDPs: simulate, discount
 
 export RolloutSimulator

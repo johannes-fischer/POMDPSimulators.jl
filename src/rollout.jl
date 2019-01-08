@@ -54,7 +54,7 @@ end
 
 function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, bu::Updater=updater(policy))
     dist = initialstate_distribution(pomdp)
-    return simulate(sim, pomdp, policy, bu, dist)
+    return @inferred simulate(sim, pomdp, policy, bu, dist)
 end
 
 
@@ -65,7 +65,7 @@ end
 
 function simulate(sim::RolloutSimulator, pomdp::POMDP{S}, policy::Policy, updater::Updater, initial_belief) where {S}
     s = rand(sim.rng, initial_belief)::S
-    return simulate(sim, pomdp, policy, updater, initial_belief, s)
+    return @inferred simulate(sim, pomdp, policy, updater, initial_belief, s)
 end
 
 @POMDP_require simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::Updater, initial_belief, s) begin
@@ -109,12 +109,11 @@ function simulate(sim::RolloutSimulator, pomdp::POMDP, policy::Policy, updater::
     step = 1
 
     while disc > eps && !isterminal(pomdp, s, a, o) && step <= max_steps
-
         a = action(policy, b)
 
-        sp, o, r = generate_sor(pomdp, s, a, sim.rng)
+        sp, o, r = @inferred generate_sor(pomdp, s, a, sim.rng)
 
-        r_total += disc*r
+        r_total = r_total .+ disc*r
 
         s = sp
 
@@ -145,7 +144,7 @@ end
 
 function simulate(sim::RolloutSimulator, mdp::MDP, policy::Policy)
     istate = initialstate(mdp, sim.rng)
-    simulate(sim, mdp, policy, istate)
+    @inferred simulate(sim, mdp, policy, istate)
 end
 
 function simulate(sim::RolloutSimulator, mdp::Union{MDP{S}, POMDP{S}}, policy::Policy, initialstate::S) where {S}
@@ -175,9 +174,9 @@ function simulate(sim::RolloutSimulator, mdp::Union{MDP{S}, POMDP{S}}, policy::P
     while disc > eps && !isterminal(mdp, s, a) && step <= max_steps
         a = action(policy, s)
 
-        sp, r = generate_sr(mdp, s, a, sim.rng)
+        sp, r = @inferred generate_sr(mdp, s, a, sim.rng)
 
-        r_total += disc*r
+        r_total = r_total .+ disc*r
 
         s = sp
 
